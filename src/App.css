@@ -1,0 +1,56 @@
+.chart {
+  display: grid;
+  height: 400px;
+  align-content: start;
+  grid-template-rows: repeat(10, 1fr);
+  background-color: bisque;
+  /* TODO think about if I want this */
+  /* grid-auto-flow: row dense; */
+}
+
+.monthHeader {
+  padding: 5px;
+  grid-row: 1 /11;
+  background-color: white;
+  border-right: 1px solid rgb(206, 206, 206);
+  text-align: center;
+}
+
+/* spring */
+.monthHeader:nth-child(12n + 4),
+.monthHeader:nth-child(12n + 5) {
+  background-color: rgb(217, 234, 211);
+}
+
+/* summer */
+.monthHeader:nth-child(12n + 6),
+.monthHeader:nth-child(12n + 7),
+.monthHeader:nth-child(12n + 8),
+.monthHeader:nth-child(12n + 9) {
+  background-color: rgb(244, 204, 204);
+}
+
+/* fall */
+.monthHeader:nth-child(12n + 10),
+.monthHeader:nth-child(12n + 11) {
+  background-color: rgb(255, 242, 204);
+}
+
+.dose {
+  border: 1px solid black;
+  align-content: center;
+  text-align: center;
+}
+
+.emptyCell {
+}
+
+.isHighlighted {
+  background-color: aqua; /* TODO make this the color of the row */
+}
+
+.medInput {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+}
