@@ -56,10 +56,10 @@ export const App = () => {
   }
 
   const [meds, setMeds] = useState(payloadFromLocationHash?.meds ?? []);
-  const [startMonth, setStartMonth] = useState(
+  const [startMonth, _setStartMonth] = useState(
     payloadFromLocationHash?.startMonth ?? 1
   );
-  const [startYear, setStartYear] = useState(
+  const [startYear, _setStartYear] = useState(
     payloadFromLocationHash?.startYear ?? 2020
   );
   const [dragStart, setDragStart] = useState<GridLocation>(null);
