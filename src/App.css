@@ -7,6 +7,7 @@
   border: 1px solid black;
   /* TODO think about if I want this */
   /* grid-auto-flow: row dense; */
+  overflow-x: scroll;
 }
 
 .monthHeader {
@@ -59,7 +60,7 @@
 }
 
 .emptyCell:hover {
-  background-color: aqua; /* TODO make this the color of the row */
+  /* background-color: aqua; TODO make this the color of the row */
 }
 
 .emptyCell:nth-child(12n-7) {

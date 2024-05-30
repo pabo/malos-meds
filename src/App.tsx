@@ -1,9 +1,30 @@
-import { FC, Fragment, useEffect, useState, ChangeEvent } from "react";
+import {
+  FC,
+  Fragment,
+  useEffect,
+  useState,
+  ChangeEvent,
+  useRef,
+  useCallback,
+} from "react";
 import "./App.css";
 import { Temporal } from "@js-temporal/polyfill";
 import { EmptyCell } from "./EmptyCell";
-import { GridLocation, Payload } from "./types";
+import { GridLocation, Med, Payload } from "./types";
 import { Medication } from "./Medication";
+
+const useEffectSkipFirst = (fn: () => any, deps: any[]) => {
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    return fn();
+  }, deps);
+};
 
 const NUM_ROWS = 13; // TODO: this is brittle, and should match what we set in grid-template-rows css
 const DEFAULT_START_YEAR = 2021;
@@ -11,23 +32,10 @@ const DEFAULT_START_MONTH = 1;
 const NUM_FUTURE_MONTHS = 12;
 
 export const App = () => {
-  // read the hash for the payload
-  let payloadFromLocationHash;
-
-  if (window.location.hash) {
-    payloadFromLocationHash = unMinifyPayload(window.location.hash.slice(1));
-  }
-
-  const [meds, setMeds] = useState(payloadFromLocationHash?.meds ?? []);
-  const [petName, setPetName] = useState(
-    payloadFromLocationHash?.petName ?? "petName"
-  );
-  const [startMonth, _setStartMonth] = useState(
-    payloadFromLocationHash?.startMonth ?? DEFAULT_START_MONTH
-  );
-  const [startYear, _setStartYear] = useState(
-    payloadFromLocationHash?.startYear ?? DEFAULT_START_YEAR
-  );
+  const [meds, setMeds] = useState<Med[]>([]);
+  const [petName, setPetName] = useState("petName");
+  const [startMonth, setStartMonth] = useState(DEFAULT_START_MONTH);
+  const [startYear, setStartYear] = useState(DEFAULT_START_YEAR);
 
   const [dragStart, setDragStart] = useState<GridLocation>(null);
   const [hoveredCell, setHoveredCell] = useState<GridLocation>(null);
@@ -35,17 +43,67 @@ export const App = () => {
   const isNeedsInput =
     meds.length >= 1 && meds[meds.length - 1].name === undefined;
 
-  // set the payload from the state
-  window.location.hash = minifyPayload({
-    petName,
-    startMonth,
-    startYear,
-    meds,
-  });
+  // TODO all of this state/hash shit is DIRTY. Needs to extract logic, or use pre-made solution
+  // on initial load, populate the state from the hash
+  useEffect(() => {
+    if (!window.location.hash) {
+      return;
+    }
+
+    populateStateFromHash();
+  }, []);
+
+  const populateStateFromHash = (hash?: string) => {
+    const strippedHash = (hash ? hash : window.location.hash).slice(1);
+    const payload = unMinifyPayload(strippedHash);
+
+    setMeds(payload.meds);
+    if (payload.petName) setPetName(payload.petName);
+    if (payload.startMonth) setStartMonth(payload.startMonth);
+    if (payload.startYear) setStartYear(payload.startYear);
+  };
+
+  // subscribe to hash changes to update state
+  const handleHashChange = useCallback((e: HashChangeEvent) => {
+    const hash = e.newURL.slice(e.newURL.indexOf("#"));
+    populateStateFromHash(hash);
+  }, []);
+
+  useEffect(() => {
+    addEventListener("hashchange", handleHashChange);
+  }, [meds, startMonth, startYear, petName]);
+
+  // on any state change, update the hash
+  useEffectSkipFirst(() => {
+    // we don't want an infinte loop of hash updates state, state updates hash, so we unsubscribe
+    // from the hash change when we are setting it from state
+    removeEventListener("hashchange", handleHashChange);
+
+    window.location.hash = minifyPayload({
+      petName,
+      startMonth,
+      startYear,
+      meds,
+    });
+
+    // wtf, setting the location hash above is deferred, and so we need to defer adding the handler back
+    setTimeout(() => addEventListener("hashchange", handleHashChange), 0);
+  }, [meds, petName, startMonth, startYear]);
 
   useEffect(() => {
     document.title = getTitle(petName);
   }, [petName]);
+
+  const handleScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const container = e.currentTarget;
+    const scrollAmount = e.deltaY;
+    container.scrollTo({
+      top: 0,
+      left: container.scrollLeft - scrollAmount,
+      behavior: "instant",
+    });
+  };
 
   const handleClear = () => {
     setMeds([]);
@@ -58,6 +116,7 @@ export const App = () => {
   // add a dose, either for a new drug or for this rows drug
   const handleMouseUp = () => {
     setDragStart(null);
+    setHoveredCell(null);
 
     if (
       dragStart === null ||
@@ -111,6 +170,7 @@ export const App = () => {
     <>
       <div
         className="chart"
+        onWheel={handleScroll}
         style={{ gridTemplateColumns: `repeat(${numMonths}, 1fr)` }}
       >
         {new Array(numMonths).fill(null).map((_month, monthIndex) => {
@@ -128,18 +188,21 @@ export const App = () => {
                 const rowIndex = medIndex + 2; // +1 for 0-index, +1 for header row
                 return (
                   <EmptyCell
-                    isAddingEnabled={!isNeedsInput}
                     key={medIndex}
                     row={rowIndex}
                     col={monthIndex + 1}
+                    isAddingEnabled={!isNeedsInput}
                     setDragStart={setDragStart}
                     setHoveredCell={setHoveredCell}
                     isHighlighted={
-                      isDragging &&
-                      hoveredCell !== null &&
-                      dragStart?.row === rowIndex &&
-                      dragStart?.col <= colIndex &&
-                      colIndex <= hoveredCell.col
+                      (hoveredCell &&
+                        hoveredCell.row === rowIndex &&
+                        hoveredCell.col === colIndex) ||
+                      (isDragging &&
+                        hoveredCell !== null &&
+                        dragStart?.row === rowIndex &&
+                        dragStart?.col <= colIndex &&
+                        colIndex <= hoveredCell.col)
                     }
                     handleMouseUp={handleMouseUp}
                   />
