@@ -6,7 +6,7 @@ export type Dose = {
 export type Med = {
   name?: string;
   color?: string;
-  doses: number[];
+  doses: Dose[];
 };
 
 export type Payload = {

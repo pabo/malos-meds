@@ -1,13 +1,14 @@
-import { ChangeEvent, FC, Fragment, KeyboardEvent, useState } from "react";
+import { FC, Fragment, useEffect, useState, ChangeEvent } from "react";
 import "./App.css";
 import { Temporal } from "@js-temporal/polyfill";
 import { EmptyCell } from "./EmptyCell";
-import { GridLocation, Dose, Payload, Med } from "./types";
+import { GridLocation, Payload } from "./types";
 import { Medication } from "./Medication";
 
-const NUM_ROWS = 10; // TODO: this is brittle, and should match what we set in grid-template-rows css
-const DEFAULT_START_YEAR = 2020;
+const NUM_ROWS = 13; // TODO: this is brittle, and should match what we set in grid-template-rows css
+const DEFAULT_START_YEAR = 2021;
 const DEFAULT_START_MONTH = 1;
+const NUM_FUTURE_MONTHS = 12;
 
 export const App = () => {
   // read the hash for the payload
@@ -18,12 +19,16 @@ export const App = () => {
   }
 
   const [meds, setMeds] = useState(payloadFromLocationHash?.meds ?? []);
+  const [petName, setPetName] = useState(
+    payloadFromLocationHash?.petName ?? "petName"
+  );
   const [startMonth, _setStartMonth] = useState(
     payloadFromLocationHash?.startMonth ?? DEFAULT_START_MONTH
   );
   const [startYear, _setStartYear] = useState(
     payloadFromLocationHash?.startYear ?? DEFAULT_START_YEAR
   );
+
   const [dragStart, setDragStart] = useState<GridLocation>(null);
   const [hoveredCell, setHoveredCell] = useState<GridLocation>(null);
   const isDragging = dragStart !== null;
@@ -31,27 +36,59 @@ export const App = () => {
     meds.length >= 1 && meds[meds.length - 1].name === undefined;
 
   // set the payload from the state
-  window.location.hash = minifyPayload({ startMonth, startYear, meds });
+  window.location.hash = minifyPayload({
+    petName,
+    startMonth,
+    startYear,
+    meds,
+  });
+
+  useEffect(() => {
+    document.title = getTitle(petName);
+  }, [petName]);
 
   const handleClear = () => {
     setMeds([]);
   };
 
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setPetName(e.target.value);
+  };
+
+  // add a dose, either for a new drug or for this rows drug
   const handleMouseUp = () => {
     setDragStart(null);
-    if (dragStart === null || hoveredCell === null) {
+
+    if (
+      dragStart === null ||
+      hoveredCell === null ||
+      dragStart.col > hoveredCell.col
+    ) {
+      return;
+    }
+
+    const newDose = {
+      start: dragStart.col,
+      duration: hoveredCell.col - dragStart.col + 1,
+    };
+
+    if (dragStart.row <= meds.length + 1) {
+      const medIndex = dragStart.row - 2;
+
+      setMeds((meds) =>
+        meds.with(medIndex, {
+          ...meds[medIndex],
+          doses: [...meds[medIndex].doses, newDose],
+        })
+      );
+
       return;
     }
 
     setMeds((meds) => [
       ...meds,
       {
-        doses: [
-          {
-            start: dragStart.col,
-            duration: hoveredCell.col - dragStart.col + 1,
-          },
-        ],
+        doses: [newDose],
       },
     ]);
   };
@@ -64,10 +101,11 @@ export const App = () => {
 
   const maxDate = Temporal.Now.plainDateISO();
 
-  const numMonths = minDate.until(maxDate, {
-    smallestUnit: "month",
-    largestUnit: "month",
-  }).months;
+  const numMonths =
+    minDate.until(maxDate, {
+      smallestUnit: "month",
+      largestUnit: "month",
+    }).months + NUM_FUTURE_MONTHS;
 
   return (
     <>
@@ -86,8 +124,8 @@ export const App = () => {
           return (
             <Fragment key={monthIndex}>
               {new Array(NUM_ROWS - 1).fill(null).map((_med, medIndex) => {
-                const colIndex = monthIndex + 1; // 1 for 0-index
-                const rowIndex = medIndex + 2; // 1 for 0-index, 1 for header row
+                const colIndex = monthIndex + 1; // +1 for 0-index
+                const rowIndex = medIndex + 2; // +1 for 0-index, +1 for header row
                 return (
                   <EmptyCell
                     isAddingEnabled={!isNeedsInput}
@@ -110,19 +148,24 @@ export const App = () => {
             </Fragment>
           );
         })}
-        {meds.map((med, index) => {
+        {meds.map((med, medIndex) => {
           return (
             <Medication
-              key={index}
+              key={medIndex}
               med={med}
-              gridRow={index + 2}
+              gridRow={medIndex + 2}
               setMeds={setMeds}
-              updateMed={() => {}}
+              updateMed={(newMed) => {
+                setMeds((med) => med.with(medIndex, newMed));
+              }}
             />
           );
         })}
       </div>
-      <button onClick={handleClear}>Clear all doses</button>
+      Your pets name:
+      <input onChange={handleChange}></input>
+      <br></br>
+      <button onClick={handleClear}>Clear all meds</button>
     </>
   );
 };
@@ -188,4 +231,27 @@ const unMinifyPayload = (string: string): Payload => {
       };
     }),
   };
+};
+
+const getTitle = (petName: string) => {
+  if (!petName) {
+    return "Med Tracker";
+  }
+
+  const wordMap = new Map([
+    ["A", "Antidotes"],
+    ["C", "Cure-alls"],
+    ["D", "Drugs"],
+    ["E", "Elixirs"],
+    ["F", "Pharmacy"],
+    ["H", "Healing"],
+    ["M", "Meds"],
+    ["N", "Narcotics"],
+    ["P", "Prescriptions"],
+    ["R", "Remedies"],
+    ["T", "Tinctures"],
+  ]);
+  const word = wordMap.get(petName[0].toUpperCase());
+
+  return `${petName}'s ${word ? word : "Meds"}`;
 };

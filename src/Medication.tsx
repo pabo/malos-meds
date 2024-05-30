@@ -1,5 +1,18 @@
 import { FC, useState, ChangeEvent, KeyboardEvent } from "react";
-import { Dose, Med } from "./types";
+import { Med } from "./types";
+
+const medColors = [
+  "#1a80bb",
+  "#ea801c",
+  "#a559aa",
+  "#f55f74",
+  "#50ad9f",
+  "#f2c45f",
+  "#62c8d3",
+  "#d22d2d",
+  "#2dd22d",
+  "#d2d22d",
+];
 
 type MedicationProps = {
   med: Med;
@@ -16,8 +29,11 @@ export const Medication: FC<MedicationProps> = ({
 }) => {
   const [inputName, setInputName] = useState("");
   const { name, color, doses } = med;
+  const medIndex = gridRow - 2;
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {};
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setInputName(e.target.value);
+  };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Tab" || e.key === "Enter") {
@@ -27,19 +43,36 @@ export const Medication: FC<MedicationProps> = ({
     }
   };
 
-  const handleClick = (index) => {
-    updateMed({ ...med, doses: med.doses.filter((dose) => true) });
+  const deleteDose = (doseIndex: number) => {
+    // this is the only dose, so delete the med
+    if (med.doses.length === 1) {
+      setMeds((meds) => [
+        ...meds.slice(0, medIndex),
+        ...meds.slice(medIndex + 1),
+      ]);
+
+      return;
+    }
+
+    updateMed({
+      ...med,
+      doses: [
+        ...med.doses.slice(0, doseIndex),
+        ...med.doses.slice(doseIndex + 1),
+      ],
+    });
   };
 
   return (
     <>
-      {doses.map(({ start, duration }, index) => {
+      {doses.map(({ start, duration }, doseIndex) => {
         return (
           <div
-            key={index}
+            onClick={() => deleteDose(doseIndex)}
+            key={doseIndex}
             className="dose"
             style={{
-              backgroundColor: color ?? "white",
+              backgroundColor: color ?? medColors[medIndex] ?? "white",
               gridColumn: `${start} / ${start + duration}`,
               gridRow: `${gridRow} / ${gridRow}`,
             }}
@@ -53,6 +86,7 @@ export const Medication: FC<MedicationProps> = ({
                 value={inputName}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
+                autoFocus
               ></input>
             )}
           </div>
