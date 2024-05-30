@@ -12,7 +12,7 @@ All of your data stays in your browser. In order to persist your changes, all of
 
 ## TODO
 
-[] horizontal scrolling
-[x] add doses for existing med
-[x] delete meds / doses
-[x] colors
+- [ ] horizontal scrolling
+- [x] add doses for existing med
+- [x] delete meds / doses
+- [x] colors
