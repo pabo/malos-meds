@@ -163,7 +163,7 @@ export const App = () => {
         })}
       </div>
       Your pets name:
-      <input onChange={handleChange}></input>
+      <input onChange={handleChange} value={petName}></input>
       <br></br>
       <button onClick={handleClear}>Clear all meds</button>
     </>
